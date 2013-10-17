@@ -10,7 +10,7 @@ LDFLAGS = -Wl,-Map,$(TARGET).map,--gc-sections -mmcu=$(MCU)
 all: $(TARGET).elf
 
 
-$(TARGET).elf: $(TARGET).o uart.o
+$(TARGET).elf: $(TARGET).o uart.o adc.o
 	$(CC) $^ -o $@ $(LDFLAGS) #$(CCFLAGS)
 	avr-objcopy -j .text -j .data -O ihex $(TARGET).elf $(TARGET).hex
 	avr-size --mcu=$(MCU) $(TARGET).elf
@@ -20,7 +20,7 @@ $(TARGET).elf: $(TARGET).o uart.o
 	$(CC) -c $< $(CCFLAGS) -o $(*).o
 
 clean:
-	rm -f *.o $(TARGET).*
+	rm -f *.o *.elf *.hex *.map *.lst
 
 load: all
 	avreal -aft2232:enable=~adbus4 +ATmega328p -evw -c $(TARGET).hex
