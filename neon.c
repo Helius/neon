@@ -2,6 +2,8 @@
 #include <avr/io.h>
 #include <stdio.h>
 #include <util/delay.h>
+#include <avr/sleep.h>
+#include <avr/interrupt.h>
 
 #include "uart.h"
 
@@ -9,9 +11,10 @@
 #define CLRBIT(reg,bit) (reg&=~(1<<bit))
 
 
-#define LED   5       //PORTB
-#define LAMP0 3       //PORTB
-#define LAMP1 4       //PORTB
+#define LED    5       //PORTB
+#define LAMP0  3       //PORTB
+#define LAMP1  4       //PORTB
+#define WAKEUP 2       //PORTD
 
 
 void gpio_init (void) {
@@ -23,36 +26,71 @@ void gpio_init (void) {
 	CLRBIT(PORTD,LAMP1);
 }
 
-int main (void) {
+void interrupt_init() {
+	//EICRA |= (1 << ISC00);    // set INT0 to trigger on ANY logic change
+	EIMSK |= (1 << INT0);     // Turns on INT0
+	SETBIT(PORTD,WAKEUP);     // enable pull-up
+	CLRBIT(DDRD,WAKEUP);      // set as input
+}
 
-	gpio_init();
-	uart_init();
-	adc_init();
-	stdout = &uart_stream;
-	stdin = &uart_stream;
-	printf("Hi, how are you?\n\r");
-	uint16_t first_adc_value = adc_get(0);
-	printf("adc on 0 channel: %d\n\r", first_adc_value);
-	srand (first_adc_value);
-	uint8_t ignition_level = 0;
-	while (1) {
-		if (ignition_level < 150) {
-			ignition_level++;
-		}
-		if (rand()%155 < ignition_level) {
+void set_lamp (uint8_t level) {
+		if (rand()%155 < level) {
 			SETBIT(PORTB,LED);
 			CLRBIT(PORTD,LAMP0);
 		} else {
 			CLRBIT(PORTB,LED);
 			SETBIT(PORTD,LAMP0);
 		}
-		if (rand()%155 < ignition_level) {
+		if (rand()%155 < level) {
 			CLRBIT(PORTD,LAMP1);
 		} else {
 			SETBIT(PORTD,LAMP1);
 		}
-		printf ("cnt: %d\n\r", ignition_level);
-		_delay_ms (100);	
+}
+
+void start_ignition () {
+	uint8_t ignition_level = 0;
+	uint16_t light_timer = 0;
+	while(ignition_level++ < 150) {
+		set_lamp(ignition_level);
+		printf ("level: %d\n\r", ignition_level);
+		_delay_ms (10);	
+	}
+	while(light_timer++ < 300) {
+		set_lamp(ignition_level);
+		printf ("timer: %d\n\r", light_timer);
+		_delay_ms (10);	
+	}
+}
+
+void go_sleep () {
+	sleep_enable();
+	sei();
+	sleep_cpu();
+	sleep_disable();
+	cli();
+}
+
+int main (void) {
+
+	gpio_init();
+	uart_init();
+	adc_init();
+	interrupt_init();
+	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
+	stdout = &uart_stream;
+	stdin = &uart_stream;
+	printf("Hi, how are you?\n\r");
+	uint16_t first_adc_value = adc_get(0);
+	printf("adc on 0 channel: %d\n\r", first_adc_value);
+	srand (first_adc_value);
+	while (1) {
+		start_ignition();
+		printf ("will sleep, by-by\n\r");
+		CLRBIT(PORTB,LED); // turn off led
+		ADCSRA = 0;// turn off ADC
+		go_sleep();
+		adc_init();
 	}
 	return 0;
 }
