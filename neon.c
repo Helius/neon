@@ -12,14 +12,14 @@
 
 
 #define LED    5       //PORTB
-#define LAMP0  3       //PORTB
-#define LAMP1  4       //PORTB
+#define LAMP0  3       //PORTD
+#define LAMP1  4       //PORTD
 #define WAKEUP 2       //PORTD
 
 
 void gpio_init (void) {
-	SETBIT(DDRB,LED);
-	CLRBIT(PORTB,LED);
+//	SETBIT(DDRB,LED);
+//	CLRBIT(PORTB,LED);
 	SETBIT(DDRD,LAMP0);
 	CLRBIT(PORTD,LAMP0);
 	SETBIT(DDRD,LAMP1);
@@ -33,15 +33,15 @@ void interrupt_init() {
 	CLRBIT(DDRD,WAKEUP);      // set as input
 }
 
-void set_lamp (uint8_t level) {
-		if (rand()%155 < level) {
-			SETBIT(PORTB,LED);
+void set_lamp (uint16_t level) {
+		if (rand()%255 < level) {
+//			SETBIT(PORTB,LED);
 			CLRBIT(PORTD,LAMP0);
 		} else {
-			CLRBIT(PORTB,LED);
+//			CLRBIT(PORTB,LED);
 			SETBIT(PORTD,LAMP0);
 		}
-		if (rand()%155 < level) {
+		if (rand()%255 < level) {
 			CLRBIT(PORTD,LAMP1);
 		} else {
 			SETBIT(PORTD,LAMP1);
@@ -49,17 +49,20 @@ void set_lamp (uint8_t level) {
 }
 
 void start_ignition () {
-	uint8_t ignition_level = 0;
+	uint16_t ignition_level = 0;
 	uint16_t light_timer = 0;
-	while(ignition_level++ < 150) {
+	while(ignition_level++ < 250) {
 		set_lamp(ignition_level);
-		printf ("level: %d\n\r", ignition_level);
-		_delay_ms (10);	
+//		printf ("level: %d\n\r", ignition_level);
+		_delay_ms (50);	
+		if (ignition_level > 100) {
+			ignition_level+=5;
+		}
 	}
-	while(light_timer++ < 300) {
+	while(light_timer++ < 500) {
 		set_lamp(ignition_level);
-		printf ("timer: %d\n\r", light_timer);
-		_delay_ms (10);	
+//		printf ("timer: %d\n\r", light_timer);
+		_delay_ms (50);	
 	}
 }
 
@@ -74,7 +77,7 @@ void go_sleep () {
 int main (void) {
 
 	gpio_init();
-	uart_init();
+//	uart_init();
 	adc_init();
 	interrupt_init();
 	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
@@ -88,9 +91,12 @@ int main (void) {
 		start_ignition();
 		printf ("will sleep, by-by\n\r");
 		CLRBIT(PORTB,LED); // turn off led
+		CLRBIT(DDRD,LAMP0);
+		CLRBIT(DDRD,LAMP1);
 		ADCSRA = 0;// turn off ADC
 		go_sleep();
 		adc_init();
+		gpio_init();
 	}
 	return 0;
 }
