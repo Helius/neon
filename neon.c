@@ -16,13 +16,18 @@
 #define LAMP1  4       //PORTD
 #define WAKEUP 2       //PORTD
 
+//#define LED_ENABLE
+
 
 void gpio_init (void) {
-//	SETBIT(DDRB,LED);
-//	CLRBIT(PORTB,LED);
+#ifdef LED_ENABLE
+	SETBIT(DDRB,LED);
+	CLRBIT(PORTB,LED);
+#endif
 	SETBIT(DDRD,LAMP0);
-	CLRBIT(PORTD,LAMP0);
 	SETBIT(DDRD,LAMP1);
+	
+	CLRBIT(PORTD,LAMP0);
 	CLRBIT(PORTD,LAMP1);
 }
 
@@ -35,10 +40,14 @@ void interrupt_init() {
 
 void set_lamp (uint16_t level) {
 		if (rand()%255 < level) {
-//			SETBIT(PORTB,LED);
+#ifdef LED_ENABLE
+			SETBIT(PORTB,LED);
+#endif
 			CLRBIT(PORTD,LAMP0);
 		} else {
-//			CLRBIT(PORTB,LED);
+#ifdef LED_ENABLE
+			CLRBIT(PORTB,LED);
+#endif
 			SETBIT(PORTD,LAMP0);
 		}
 		if (rand()%255 < level) {
@@ -77,26 +86,29 @@ void go_sleep () {
 int main (void) {
 
 	gpio_init();
-//	uart_init();
 	adc_init();
 	interrupt_init();
 	set_sleep_mode(SLEEP_MODE_PWR_DOWN);
 	stdout = &uart_stream;
 	stdin = &uart_stream;
 	printf("Hi, how are you?\n\r");
-	uint16_t first_adc_value = adc_get(0);
+	uint16_t first_adc_value = adc_get(3);
 	printf("adc on 0 channel: %d\n\r", first_adc_value);
 	srand (first_adc_value);
 	while (1) {
 		start_ignition();
 		printf ("will sleep, by-by\n\r");
+	#ifdef LED_ENABLE
 		CLRBIT(PORTB,LED); // turn off led
+	#endif
+		CLRBIT(PORTD,LAMP0);
+		CLRBIT(PORTD,LAMP1);
 		CLRBIT(DDRD,LAMP0);
 		CLRBIT(DDRD,LAMP1);
 		ADCSRA = 0;// turn off ADC
 		go_sleep();
-		adc_init();
 		gpio_init();
+		adc_init();
 	}
 	return 0;
 }
